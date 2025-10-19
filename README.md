@@ -105,14 +105,67 @@ The system uses a RAG architecture with the following components:
    - Prompt engineering
    - Gemini model integration
 
-## Configuration
+## Technical Details
 
-Key parameters in the system:
-- Chunk size: 150 words
-- Chunk overlap: 50 words
-- Retrieved documents: 5
-- Temperature: 0.5
-- Maximum output tokens: 2048
+### Models and Embeddings
+- **LLM Model**: Google Gemini 2.5 Flash
+- **Embedding Model**: Sentence-Transformer (multi-qa-MiniLM-L6-cos-v1)
+  - Embedding Dimension: 384
+  - Model Size: ~90MB
+  - Optimized for question-answering tasks
+
+### RAG Parameters
+- **Text Chunking**:
+  - Chunk Size: 150 words
+  - Overlap: 50 words (33% overlap for context continuity)
+  - Adaptive chunking based on sentence boundaries
+
+- **Vector Search**:
+  - Search Algorithm: FAISS IndexFlatIP (Exact Inner Product)
+  - Top-k Documents Retrieved: 5
+  - Similarity Metric: Cosine Similarity
+
+### Generation Parameters
+- **Gemini Configuration**:
+  - Temperature: 0.5 (balanced between creativity and consistency)
+  - Max Output Tokens: 2048
+  - Top-p: 0.8
+  - Top-k: 40
+
+### Performance Considerations
+- Memory Usage: ~200-300MB (base model + index)
+- Average Response Time: 1-3 seconds
+- Index Building: Linear with document size (O(n))
+
+## Next Steps
+
+Future improvements and enhancements planned for this project:
+
+1. **Data Expansion**:
+   - Integration with larger, real-world document sets
+   - Support for more file formats (Word, Excel, HTML)
+   - Multi-language document support
+
+2. **Performance Optimization**:
+   - Improved chunking strategies for better context preservation
+   - Parallel processing for faster document indexing
+   - Caching mechanisms for frequently accessed content
+
+3. **Enhanced Features**:
+   - Document metadata indexing and search
+   - User feedback integration for response improvement
+   - Custom training for domain-specific terminology
+   - Real-time document updates and index maintenance
+
+4. **Security and Access Control**:
+   - Role-based access to sensitive information
+   - Document-level security policies
+   - Audit logging for compliance
+
+5. **Integration Capabilities**:
+   - API endpoints for third-party integration
+   - Integration with document management systems
+   - Support for real-time collaboration
 
 ## Contributing
 
@@ -128,7 +181,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Google Generative AI for Gemini model
-- Facebook Research for FAISS
+- Google Gemini model for Large Language Model (LLM) capabilities
+- FAISS (Facebook AI Similarity Search) for efficient similarity search
 - Sentence Transformers for embeddings
 - Streamlit for the UI framework
