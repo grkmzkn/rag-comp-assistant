@@ -56,6 +56,17 @@ GEMINI_API_KEY=your_api_key_here
 
 ## Usage
 
+### Screenshots
+
+#### Legal Department Query Example
+![Legal Department Query](./README-images/rag_hukuk1.png)
+
+#### Production Department Query Example
+![Production Department Query](./README-images/rag_uretim1.png)
+
+#### No Information Example
+![No Information Response](./README-images/rag_noinfo.png)
+
 ### About the Dataset
 
 This project uses a synthetic dataset created for demonstration purposes. The data:
