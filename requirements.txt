@@ -1,0 +1,7 @@
+google-generativeai==0.8.5
+faiss-cpu==1.12.0
+python-dotenv
+PyPDF2
+sentence-transformers
+streamlit
+numpy
