@@ -12,8 +12,9 @@ load_dotenv()
 # Configure Gemini API
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
-# Initialize sentence transformer model - using a more powerful model
-embedding_model = SentenceTransformer('multi-qa-MiniLM-L6-cos-v1')
+# Initialize sentence transformer model - using a lightweight model for memory efficiency
+# embedding_model = SentenceTransformer('multi-qa-MiniLM-L6-cos-v1')
+embedding_model = SentenceTransformer('paraphrase-MiniLM-L3-v2')  # Smaller model, more RAM friendly
 
 def read_pdf(pdf_path):
     """Reads a PDF file and extracts its text content.
