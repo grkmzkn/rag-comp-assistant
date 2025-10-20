@@ -56,6 +56,8 @@ GEMINI_API_KEY=your_api_key_here
 
 ## Usage
 
+https://huggingface.co/spaces/grkmzkn/assistant
+
 ### Screenshots
 
 #### Legal Department Query Example
@@ -63,6 +65,9 @@ GEMINI_API_KEY=your_api_key_here
 
 #### Production Department Query Example
 ![Production Department Query](./README-images/rag_uretim1.png)
+
+#### Logistic Department Query Example
+![Logistic Department Query](./README-images/rag_lojistik1.png)
 
 #### No Information Example
 ![No Information Response](./README-images/rag_noinfo.png)
