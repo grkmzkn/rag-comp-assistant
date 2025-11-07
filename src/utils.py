@@ -3,9 +3,18 @@ import json
 import PyPDF2
 import faiss
 import numpy as np
+import nltk
+from nltk.tokenize import sent_tokenize
+from nltk.tokenize import word_tokenize
 import google.generativeai as genai
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+
+# Download required NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 # Load environment variables
 load_dotenv()
@@ -34,31 +43,93 @@ def read_pdf(pdf_path):
             text += page.extract_text()
     return text
 
+def calculate_dynamic_chunk_size(text):
+    """Calculate dynamic chunk size based on document length.
+    
+    Args:
+        text (str): The input text.
+    
+    Returns:
+        tuple: (chunk_size, overlap_size) in words
+    """
+    total_words = len(word_tokenize(text))
+    
+    if total_words < 500:
+        return 100, 30  # Small documents
+    elif total_words < 1000:
+        return 150, 50  # Medium documents
+    else:
+        return 200, 70  # Large documents
+
 def split_into_chunks(text, chunk_size=150, overlap=50):
-    """Splits text into smaller chunks with overlap for better context preservation.
+    """Splits text into smaller chunks using sentence-level tokenization and dynamic sizing.
+    
+    This function:
+    1. Splits text into sentences using NLTK
+    2. Calculates dynamic chunk size based on document length
+    3. Groups sentences while respecting word limits
+    4. Ensures sentence integrity is maintained
+    5. Provides overlap between chunks for context preservation
     
     Args:
         text (str): The input text to be split into chunks.
-        chunk_size (int, optional): The target size of each chunk in words. Defaults to 150.
-        overlap (int, optional): The number of words to overlap between chunks. Defaults to 50.
+        chunk_size (int, optional): Target size in words. May be adjusted dynamically.
+        overlap (int, optional): Target overlap in words. May be adjusted dynamically.
         
     Returns:
-        list[str]: A list of text chunks, each containing approximately chunk_size words
-                  with overlap between consecutive chunks.
+        list[str]: A list of text chunks, each containing complete sentences
+                  and approximately following the target size.
     """
-    words = text.split()
-    chunks = []
+    # Calculate dynamic chunk size based on document length
+    dynamic_chunk_size, dynamic_overlap = calculate_dynamic_chunk_size(text)
+    chunk_size = dynamic_chunk_size
+    overlap = dynamic_overlap
     
-    # If text is shorter than chunk_size, return it as a single chunk
-    if len(words) <= chunk_size:
+    # Split text into sentences
+    sentences = sent_tokenize(text)
+    
+    # If text is very short, return as single chunk
+    if len(sentences) <= 3:
         return [text]
     
-    for i in range(0, len(words), chunk_size - overlap):
-        # Get chunk_size words or remaining words if less
-        chunk = words[i:i + chunk_size]
-        # Only add if chunk is not empty and has meaningful length
-        if chunk and len(chunk) > overlap:
-            chunks.append(" ".join(chunk))
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    last_chunk_size = 0
+    
+    for sentence in sentences:
+        sentence_words = word_tokenize(sentence)
+        sentence_size = len(sentence_words)
+        
+        # If a single sentence is very long, split it
+        if sentence_size > chunk_size:
+            if current_chunk:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = []
+                current_size = 0
+            
+            # Split long sentence while keeping words together
+            words = sentence.split()
+            for i in range(0, len(words), chunk_size):
+                chunk = words[i:i + chunk_size]
+                chunks.append(" ".join(chunk))
+            continue
+        
+        # Check if adding this sentence would exceed chunk size
+        if current_size + sentence_size > chunk_size and current_chunk:
+            chunks.append(" ".join(current_chunk))
+            
+            # Calculate overlap
+            overlap_start = max(0, len(current_chunk) - overlap)
+            current_chunk = current_chunk[overlap_start:]
+            current_size = sum(len(word_tokenize(s)) for s in current_chunk)
+            
+        current_chunk.append(sentence)
+        current_size += sentence_size
+        
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
     
     return chunks
 
