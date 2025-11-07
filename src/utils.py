@@ -76,10 +76,24 @@ def get_embeddings(text):
     return normalized_embedding
 
 class RAGSystem:
-    def __init__(self, dimension=384):  # sentence-transformers embedding dimension
-        # Use cosine similarity instead of L2 distance
-        self.index = faiss.IndexFlatIP(dimension)  # IP = Inner Product (for cosine similarity)
-        self.texts = []
+    def __init__(self, dimension=384, index_path="models/faiss_index"):  # sentence-transformers embedding dimension
+        self.index_path = index_path
+        self.texts_path = f"{index_path}_texts.npy"
+        
+        # Try to load existing index and texts
+        if os.path.exists(self.index_path) and os.path.exists(self.texts_path):
+            self.index = faiss.read_index(self.index_path)
+            self.texts = list(np.load(self.texts_path, allow_pickle=True))
+        else:
+            # Create new index if not exists
+            self.index = faiss.IndexFlatIP(dimension)  # IP = Inner Product (for cosine similarity)
+            self.texts = []
+            
+    def save_index(self):
+        """Saves the FAISS index and text chunks to disk."""
+        os.makedirs(os.path.dirname(self.index_path), exist_ok=True)
+        faiss.write_index(self.index, self.index_path)
+        np.save(self.texts_path, np.array(self.texts, dtype=object))
         
     def add_document(self, pdf_path):
         """Processes a PDF document and adds its content to the RAG system.
@@ -97,6 +111,9 @@ class RAGSystem:
             embedding = get_embeddings(chunk)
             self.index.add(np.array([embedding], dtype=np.float32))
             self.texts.append(chunk)
+        
+        # Save index and texts after adding new document
+        self.save_index()
     
     def search(self, query, k=5):
         """Searches for the k most relevant text chunks for a given query.
