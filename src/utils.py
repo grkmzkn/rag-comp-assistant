@@ -1,4 +1,5 @@
 import os
+import json
 import PyPDF2
 import faiss
 import numpy as np
@@ -79,15 +80,66 @@ class RAGSystem:
     def __init__(self, dimension=384, index_path="models/faiss_index"):  # sentence-transformers embedding dimension
         self.index_path = index_path
         self.texts_path = f"{index_path}_texts.npy"
+        self.state_path = f"{index_path}_state.json"
+        self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
         
-        # Try to load existing index and texts
-        if os.path.exists(self.index_path) and os.path.exists(self.texts_path):
+        if self._should_update_index():
+            # Create new index if state changed
+            print("Changes detected in data directory. Updating index...")
+            self.index = faiss.IndexFlatIP(dimension)
+            self.texts = []
+            self._process_all_documents()
+        else:
+            # Load existing index
+            print("Loading existing index...")
             self.index = faiss.read_index(self.index_path)
             self.texts = list(np.load(self.texts_path, allow_pickle=True))
-        else:
-            # Create new index if not exists
-            self.index = faiss.IndexFlatIP(dimension)  # IP = Inner Product (for cosine similarity)
-            self.texts = []
+    
+    def _get_data_state(self):
+        """Get current state of data directory including file count and latest modification time."""
+        files = [f for f in os.listdir(self.data_dir) if f.endswith('.pdf')]
+        latest_mod_time = max(os.path.getmtime(os.path.join(self.data_dir, f)) 
+                            for f in files) if files else 0
+        return {
+            'file_count': len(files),
+            'latest_modification': latest_mod_time
+        }
+    
+    def _should_update_index(self):
+        """
+        Check if index needs to be updated based on data directory state.
+        Returns True if:
+        - State file doesn't exist
+        - Index files don't exist
+        - Number of PDF files changed
+        - Any PDF file was modified
+        """
+        current_state = self._get_data_state()
+        
+        # If no state file exists or no index files exist, update is needed
+        if not os.path.exists(self.state_path) or \
+           not os.path.exists(self.index_path) or \
+           not os.path.exists(self.texts_path):
+            self._save_state(current_state)
+            return True
+            
+        # Load previous state
+        with open(self.state_path, 'r') as f:
+            previous_state = json.load(f)
+            
+        # Check if state changed
+        if previous_state['file_count'] != current_state['file_count'] or \
+           previous_state['latest_modification'] != current_state['latest_modification']:
+            self._save_state(current_state)
+            return True
+            
+        return False
+    
+    def _save_state(self, state):
+        """Save current state (file count and modification time) to JSON file."""
+        os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
+        with open(self.state_path, 'w') as f:
+            json.dump(state, f)
             
     def save_index(self):
         """Saves the FAISS index and text chunks to disk."""
@@ -111,9 +163,26 @@ class RAGSystem:
             embedding = get_embeddings(chunk)
             self.index.add(np.array([embedding], dtype=np.float32))
             self.texts.append(chunk)
+    
+    def _process_all_documents(self):
+        """
+        Process all PDF documents in data directory and save the index.
+        This method:
+        1. Reads each PDF file in the data directory
+        2. Processes them into chunks
+        3. Creates embeddings and adds to FAISS index
+        4. Saves the final index and state
+        """
+        for filename in os.listdir(self.data_dir):
+            if filename.endswith('.pdf'):
+                pdf_path = os.path.join(self.data_dir, filename)
+                print(f"Processing file: {filename}")
+                self.add_document(pdf_path)
         
-        # Save index and texts after adding new document
+        # Save index and state after processing all documents
         self.save_index()
+        current_state = self._get_data_state()
+        self._save_state(current_state)
     
     def search(self, query, k=5):
         """Searches for the k most relevant text chunks for a given query.
