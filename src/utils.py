@@ -271,7 +271,7 @@ class RAGSystem:
         distances, indices = self.index.search(query_embedding, k)
         return [self.texts[i] for i in indices[0]]
 
-    def get_response(self, query):
+    def get_response(self, query, chat_session=None):
         """Generates a response using Gemini model based on relevant context.
         
         This method:
@@ -281,6 +281,7 @@ class RAGSystem:
         
         Args:
             query (str): The user's question or query.
+            chat_session: Optional chat session to maintain conversation context.
             
         Returns:
             str: The generated response from the Gemini model.
@@ -322,6 +323,7 @@ class RAGSystem:
         6. Profesyonel ve kibar bir dil kullan
         7. Tüm yanıtlarını Türkçe olarak ver
         8. Şüpheli durumlarda, bağlamı daha geniş yorumla ve ilgili olabilecek bilgileri değerlendir
+        9. Önceki konuşma bağlamını dikkate al ve tutarlı cevaplar ver
         """
 
         prompt = f"""Aşağıda verilen bağlam bilgisini kullan:
@@ -332,13 +334,12 @@ class RAGSystem:
         Soru: {query}
         Yanıt: """
 
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        model.generation_config = generation_config
+        if chat_session is None:
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            model.generation_config = generation_config
+            chat_session = model.start_chat(history=[])
+            chat_session.send_message(system_prompt)
         
-        # Create chat session with system prompt
-        chat = model.start_chat(history=[])
-        chat.send_message(system_prompt)
-        
-        # Get response
-        response = chat.send_message(prompt)
+        # Get response using existing chat session
+        response = chat_session.send_message(prompt)
         return response.text
