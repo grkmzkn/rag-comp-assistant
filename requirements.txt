@@ -5,3 +5,4 @@ PyPDF2
 sentence-transformers
 streamlit
 numpy
+nltk>=3.8.1
