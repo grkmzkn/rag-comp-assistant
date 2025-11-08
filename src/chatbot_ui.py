@@ -37,18 +37,11 @@ def initialize_rag_system():
     Returns:
         RAGSystem: An initialized RAG system containing processed documents.
     """
-    rag = RAGSystem()
-    
-    # Directory containing PDF files
-    pdf_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-    
-    # Process all PDF files
-    for filename in os.listdir(pdf_dir):
-        if filename.endswith(".pdf"):
-            pdf_path = os.path.join(pdf_dir, filename)
-            with st.spinner(f"'{filename}' işleniyor..."):
-                rag.add_document(pdf_path)
-    
+    # RAGSystem sınıfı otomatik olarak dosya değişikliklerini kontrol eder
+    # ve sadece gerektiğinde indeksi günceller
+    with st.spinner("PDF dosyaları kontrol ediliyor..."):
+        rag = RAGSystem()
+        
     return rag
 
 def main():
@@ -69,9 +62,9 @@ def main():
     
     # Initialize RAG system for first time
     if st.session_state.rag_system is None:
-        with st.spinner("Sistem başlatılıyor..."):
+        with st.spinner("Sistem başlatılıyor... PDF dosyaları kontrol ediliyor..."):
             st.session_state.rag_system = initialize_rag_system()
-        st.success("Sistem başlatıldı!")
+        st.success("Sistem hazır! PDF dosyaları yüklendi ve indeks güncel.")
     
     # Display chat history
     for message in st.session_state.messages:
