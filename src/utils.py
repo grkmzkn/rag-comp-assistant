@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import PyPDF2
 import faiss
 import numpy as np
@@ -271,20 +272,24 @@ class RAGSystem:
         distances, indices = self.index.search(query_embedding, k)
         return [self.texts[i] for i in indices[0]]
 
-    def get_response(self, query, chat_session=None):
+    def get_response(self, query, chat_session=None, max_retries=3):
         """Generates a response using Gemini model based on relevant context.
         
         This method:
         1. Retrieves relevant text chunks using similarity search
         2. Creates a prompt with the context and query
-        3. Generates a response using the Gemini model
+        3. Generates a response using the Gemini model with retry mechanism
         
         Args:
             query (str): The user's question or query.
             chat_session: Optional chat session to maintain conversation context.
+            max_retries: Maximum number of retry attempts for API calls.
             
         Returns:
             str: The generated response from the Gemini model.
+            
+        Raises:
+            Exception: If all retry attempts fail
         """
         relevant_chunks = self.search(query)
         context = "\n".join(relevant_chunks)
@@ -334,12 +339,20 @@ class RAGSystem:
         Soru: {query}
         Yanıt: """
 
-        if chat_session is None:
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            model.generation_config = generation_config
-            chat_session = model.start_chat(history=[])
-            chat_session.send_message(system_prompt)
-        
-        # Get response using existing chat session
-        response = chat_session.send_message(prompt)
-        return response.text
+        for attempt in range(max_retries):
+            try:
+                if chat_session is None:
+                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    model.generation_config = generation_config
+                    chat_session = model.start_chat(history=[])
+                    chat_session.send_message(system_prompt)
+                
+                # Get response using existing chat session
+                response = chat_session.send_message(prompt)
+                return response.text
+                
+            except Exception as e:
+                if attempt == max_retries - 1:  # Son deneme başarısız olduysa
+                    raise Exception(f"Gemini API hatası ({max_retries} denemeden sonra): {str(e)}")
+                print(f"API çağrısı başarısız (deneme {attempt + 1}/{max_retries}), yeniden deneniyor...")
+                time.sleep(1)  # 1 saniye bekle ve tekrar dene
